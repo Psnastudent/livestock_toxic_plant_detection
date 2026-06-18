@@ -17,6 +17,16 @@ class Plant {
   final String firstAid;
   final String tamilFirstAid;
 
+  final String hostsAffected;
+  final String tamilHostsAffected;
+  final String onsetOfSymptoms;
+  final String tamilOnsetOfSymptoms;
+  final String veterinaryTreatment;
+  final String tamilVeterinaryTreatment;
+  final String warningMessage;
+  final String tamilWarningMessage;
+  final String symptomsImageUrl;
+
   Plant({
     required this.plantId,
     required this.tamilName,
@@ -33,6 +43,15 @@ class Plant {
     this.tamilSymptoms = 'குறிப்பிட்ட அறிகுறிகள் எதுவும் இல்லை.',
     this.firstAid = 'Remove animal from source immediately. Contact vet.',
     this.tamilFirstAid = 'இந்த செடியிலிருந்து விலங்கை அப்புறப்படுத்தவும். மருத்துவரை அணுகவும்.',
+    this.hostsAffected = 'Cattle, Goats, Sheep',
+    this.tamilHostsAffected = 'மாடுகள், ஆடுகள், செம்மறி ஆடுகள்',
+    this.onsetOfSymptoms = 'Within 24 hours of ingestion',
+    this.tamilOnsetOfSymptoms = 'உட்கொண்ட 24 மணி நேரத்திற்குள்',
+    this.veterinaryTreatment = 'Symptomatic treatment by a veterinarian.',
+    this.tamilVeterinaryTreatment = 'கால்நடை மருத்துவரால் அறிகுறி அடிப்படையிலான சிகிச்சை.',
+    this.warningMessage = 'Highly Toxic. Keep away from pastures.',
+    this.tamilWarningMessage = 'மிகவும் நச்சுத்தன்மை வாய்ந்தது. மேய்ச்சல் நிலங்களிலிருந்து தள்ளி வைக்கவும்.',
+    this.symptomsImageUrl = '',
   });
 
   factory Plant.fromMap(Map<String, dynamic> map) {
@@ -55,6 +74,15 @@ class Plant {
       tamilSymptoms: map['tamilSymptoms'] ?? 'குறிப்பிட்ட அறிகுறிகள் எதுவும் இல்லை.',
       firstAid: map['firstAid'] ?? 'Remove animal from source immediately. Contact vet.',
       tamilFirstAid: map['tamilFirstAid'] ?? 'இந்த செடியிலிருந்து விலங்கை அப்புறப்படுத்தவும். மருத்துவரை அணுகவும்.',
+      hostsAffected: map['hostsAffected'] ?? 'Cattle, Goats, Sheep',
+      tamilHostsAffected: map['tamilHostsAffected'] ?? 'மாடுகள், ஆடுகள், செம்மறி ஆடுகள்',
+      onsetOfSymptoms: map['onsetOfSymptoms'] ?? 'Within 24 hours of ingestion',
+      tamilOnsetOfSymptoms: map['tamilOnsetOfSymptoms'] ?? 'உட்கொண்ட 24 மணி நேரத்திற்குள்',
+      veterinaryTreatment: map['veterinaryTreatment'] ?? 'Symptomatic treatment by a veterinarian.',
+      tamilVeterinaryTreatment: map['tamilVeterinaryTreatment'] ?? 'கால்நடை மருத்துவரால் அறிகுறி அடிப்படையிலான சிகிச்சை.',
+      warningMessage: map['warningMessage'] ?? 'Highly Toxic. Keep away from pastures.',
+      tamilWarningMessage: map['tamilWarningMessage'] ?? 'மிகவும் நச்சுத்தன்மை வாய்ந்தது. மேய்ச்சல் நிலங்களிலிருந்து தள்ளி வைக்கவும்.',
+      symptomsImageUrl: map['symptomsImageUrl'] ?? '',
     );
   }
 }

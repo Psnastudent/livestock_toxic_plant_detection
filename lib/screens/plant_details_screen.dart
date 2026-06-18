@@ -274,7 +274,7 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Warning
+                  // Warning Message
                   if (isHarmful) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -288,10 +288,10 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                           Icon(Icons.warning_amber_rounded, color: Colors.red[400], size: 26),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Text(t('toxicity_warning'),
+                            child: Text(isTamil ? plant.tamilWarningMessage : plant.warningMessage,
                                 style: GoogleFonts.outfit(
                                     color: Theme.of(context).textTheme.bodyLarge?.color,
-                                    fontSize: 13, height: 1.4)),
+                                    fontSize: 14, fontWeight: FontWeight.w600, height: 1.4)),
                           ),
                         ],
                       ),
@@ -303,6 +303,7 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                   Text(t('about_plant'),
                       style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700,
                           color: Theme.of(context).textTheme.bodyLarge?.color)),
+                  const SizedBox(height: 12),
                   GlassCard(
                     borderRadius: 20,
                     padding: const EdgeInsets.all(20),
@@ -311,6 +312,42 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                       style: GoogleFonts.outfit(
                           color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontSize: 14, height: 1.7),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Hosts Affected & Onset
+                  GlassCard(
+                    borderRadius: 20,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.pets_rounded, color: Colors.brown, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(isTamil ? 'பாதிக்கப்படும் விலங்குகள் (Hosts Affected):' : 'Hosts Affected:', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color))),
+                          ]
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 30, top: 4, bottom: 12),
+                          child: Text(isTamil ? plant.tamilHostsAffected : plant.hostsAffected, style: GoogleFonts.outfit(fontSize: 14, height: 1.4, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                        ),
+                        Divider(height: 1, color: Theme.of(context).dividerColor),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time_rounded, color: Colors.blueGrey, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(isTamil ? 'அறிகுறிகள் தோன்றும் நேரம் (Onset):' : 'Time of Symptoms Onset:', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color))),
+                          ]
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 30, top: 4),
+                          child: Text(isTamil ? plant.tamilOnsetOfSymptoms : plant.onsetOfSymptoms, style: GoogleFonts.outfit(fontSize: 14, height: 1.4, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -326,16 +363,34 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                         color: Colors.orange.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Row(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.sick_rounded, color: Colors.orange, size: 24),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(isTamil ? plant.tamilSymptoms : plant.symptoms,
-                                style: GoogleFonts.outfit(fontSize: 14, height: 1.5,
-                                    color: Theme.of(context).textTheme.bodyLarge?.color)),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.sick_rounded, color: Colors.orange, size: 24),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(isTamil ? plant.tamilSymptoms : plant.symptoms,
+                                    style: GoogleFonts.outfit(fontSize: 14, height: 1.5,
+                                        color: Theme.of(context).textTheme.bodyLarge?.color)),
+                              ),
+                            ],
                           ),
+                          if (plant.symptomsImageUrl.isNotEmpty) ...[
+                             const SizedBox(height: 16),
+                             ClipRRect(
+                               borderRadius: BorderRadius.circular(12),
+                               child: Image.network(
+                                 plant.symptomsImageUrl,
+                                 width: double.infinity,
+                                 height: 180,
+                                 fit: BoxFit.cover,
+                                 errorBuilder: (ctx, err, stack) => const SizedBox(),
+                               ),
+                             )
+                          ]
                         ],
                       ),
                     ),
@@ -358,6 +413,31 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(isTamil ? plant.tamilFirstAid : plant.firstAid,
+                                style: GoogleFonts.outfit(fontSize: 14, height: 1.5,
+                                    color: Theme.of(context).textTheme.bodyLarge?.color)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Text(isTamil ? 'கால்நடை மருத்துவ சிகிச்சை (Veterinary Treatment)' : 'Veterinary Treatment',
+                        style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700,
+                            color: Theme.of(context).textTheme.bodyLarge?.color)),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.healing_rounded, color: Colors.teal, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(isTamil ? plant.tamilVeterinaryTreatment : plant.veterinaryTreatment,
                                 style: GoogleFonts.outfit(fontSize: 14, height: 1.5,
                                     color: Theme.of(context).textTheme.bodyLarge?.color)),
                           ),
