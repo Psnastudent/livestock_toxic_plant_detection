@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
-import '../localization/app_localizations.dart';
+
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -27,7 +27,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(localeProvider);
-    final localizations = AppLocalizations(lang);
+
     final user = ref.watch(authProvider);
 
     if (user == null) {
@@ -42,15 +42,15 @@ class DashboardScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           lang == 'ta' ? 'எனது சுயவிவரம்' : 'My Profile',
-          style: _getTextStyle(18, FontWeight.bold, const Color(0xFF1B5E20), lang),
+          style: _getTextStyle(18, FontWeight.bold, Colors.white, lang),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: const Color(0xFF2E7D32),
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -90,14 +90,14 @@ class DashboardScreen extends ConsumerWidget {
             // Profile Name
             Text(
               user.name,
-              style: _getTextStyle(24, FontWeight.bold, const Color(0xFF1B5E20), lang),
+              style: _getTextStyle(24, FontWeight.bold, Colors.white, lang),
             ),
             const SizedBox(height: 4),
 
             // Profile Email
             Text(
               user.email,
-              style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
+              style: GoogleFonts.inter(fontSize: 14, color: Colors.white70),
             ),
             const SizedBox(height: 24),
 
@@ -109,20 +109,20 @@ class DashboardScreen extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 lang == 'ta' ? 'அமைப்புகள்' : 'Settings',
-                style: _getTextStyle(16, FontWeight.bold, const Color(0xFF1B5E20), lang),
+                style: _getTextStyle(16, FontWeight.bold, Colors.white, lang),
               ),
             ),
             const SizedBox(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.language, color: Color(0xFF2E7D32)),
+              leading: Icon(Icons.language, color: Theme.of(context).colorScheme.secondary),
               title: Text(
                 lang == 'ta' ? 'விருப்பமான மொழி' : 'Preferred Language',
-                style: _getTextStyle(14, FontWeight.w500, Colors.black87, lang),
+                style: _getTextStyle(14, FontWeight.w500, Colors.white, lang),
               ),
               trailing: Text(
                 lang == 'ta' ? 'தமிழ் (Tamil)' : 'English',
-                style: _getTextStyle(14, FontWeight.bold, const Color(0xFF2E7D32), lang),
+                style: _getTextStyle(14, FontWeight.bold, Theme.of(context).colorScheme.secondary, lang),
               ),
             ),
             const SizedBox(height: 24),
@@ -132,27 +132,27 @@ class DashboardScreen extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 lang == 'ta' ? 'சமீபத்திய ஸ்கேன்கள் (5)' : 'Recent Scans (5)',
-                style: _getTextStyle(16, FontWeight.bold, const Color(0xFF1B5E20), lang),
+                style: _getTextStyle(16, FontWeight.bold, Colors.white, lang),
               ),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green[50],
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.green[100]!),
+                border: Border.all(color: Colors.white24),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.history, color: Color(0xFF2E7D32)),
+                  Icon(Icons.history, color: Theme.of(context).colorScheme.secondary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       lang == 'ta'
                           ? 'ஸ்கேன் வரலாறு காலியாக உள்ளது.'
                           : 'Scan history is empty.',
-                      style: _getTextStyle(14, FontWeight.normal, const Color(0xFF1B5E20), lang),
+                      style: _getTextStyle(14, FontWeight.normal, Colors.white, lang),
                     ),
                   ),
                 ],

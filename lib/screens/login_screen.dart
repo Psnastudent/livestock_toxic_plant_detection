@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/user_profile.dart';
 import '../providers/auth_provider.dart';
-import '../providers/locale_provider.dart';
-import '../localization/app_localizations.dart';
+import '../providers/language_provider.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -13,171 +14,81 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _pinController = TextEditingController();
-  bool _obscurePin = true;
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+  late Animation<double> _buttonScale;
+
+  static const _bgImage =
+      'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80';
+
+  @override
+  void initState() {
+    super.initState();
+
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
+
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+
+    _buttonScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _slideController,
+        curve: const Interval(0.5, 1.0, curve: Curves.elasticOut),
+      ),
+    );
+
+    _fadeController.forward();
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) _slideController.forward();
+    });
+  }
 
   @override
   void dispose() {
-    _pinController.dispose();
+    _fadeController.dispose();
+    _slideController.dispose();
     super.dispose();
   }
 
-  TextStyle _getTextStyle(double fontSize, FontWeight fontWeight, Color color, String lang) {
-    if (lang == 'ta') {
-      return GoogleFonts.notoSansTamil(fontSize: fontSize, fontWeight: fontWeight, color: color);
-    }
-    return GoogleFonts.inter(fontSize: fontSize, fontWeight: fontWeight, color: color);
-  }
-
-  // ── User login ────────────────────────────────────────────────────────────
-  void _loginAsUser(BuildContext ctx, String lang) {
+  void _enterApp() {
     final mockProfile = UserProfile(
       uid: 'user_001',
       name: 'Farmer User',
-      email: 'user@toxicplant.app',
+      email: 'user@agriguard.app',
       photoUrl: 'https://picsum.photos/id/433/200/200',
       loginMethod: 'Mock',
       role: 'user',
       createdAt: DateTime.now(),
     );
     ref.read(authProvider.notifier).state = mockProfile;
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-      content: Text(lang == 'ta' ? 'வெற்றிகரமாக உள்நுழைந்தீர்கள்!' : 'Signed in as User!'),
-      backgroundColor: const Color(0xFF2E7D32),
-    ));
-    Navigator.pop(ctx);
-  }
-
-  // ── Admin login (PIN dialog) ───────────────────────────────────────────────
-  void _showAdminPinSheet(BuildContext ctx, String lang) {
-    _pinController.clear();
-    showModalBottomSheet(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(
-        builder: (sheetCtx, setSheetState) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              padding: const EdgeInsets.fromLTRB(28, 20, 28, 36),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Handle bar
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1B5E20).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.admin_panel_settings, color: Color(0xFF1B5E20), size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        lang == 'ta' ? 'நிர்வாக அணுகல்' : 'Admin Access',
-                        style: _getTextStyle(20, FontWeight.bold, const Color(0xFF1B5E20), lang),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    lang == 'ta'
-                        ? 'நிர்வாக PIN ஐ உள்ளிடவும்'
-                        : 'Enter the admin PIN to continue',
-                    style: _getTextStyle(13, FontWeight.normal, Colors.grey[600]!, lang),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _pinController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    obscureText: _obscurePin,
-                    style: GoogleFonts.inter(fontSize: 20, letterSpacing: 8, fontWeight: FontWeight.bold),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      hintText: '• • • •',
-                      hintStyle: GoogleFonts.inter(fontSize: 18, color: Colors.grey[400]),
-                      filled: true,
-                      fillColor: const Color(0xFFF5F5F5),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePin ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-                        onPressed: () => setSheetState(() => _obscurePin = !_obscurePin),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Admin PIN is "1234" – change here for production
-                        if (_pinController.text.trim() == '1234') {
-                          final adminProfile = UserProfile(
-                            uid: 'admin_001',
-                            name: 'Admin',
-                            email: 'admin@toxicplant.app',
-                            photoUrl: 'https://picsum.photos/id/177/200/200',
-                            loginMethod: 'PIN',
-                            role: 'admin',
-                            createdAt: DateTime.now(),
-                          );
-                          ref.read(authProvider.notifier).state = adminProfile;
-                          Navigator.pop(sheetCtx); // close sheet
-                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                            content: Text(lang == 'ta' ? 'நிர்வாகியாக உள்நுழைந்தீர்கள்!' : 'Signed in as Admin!'),
-                            backgroundColor: const Color(0xFF1B5E20),
-                          ));
-                          Navigator.pop(ctx); // back to home
-                        } else {
-                          ScaffoldMessenger.of(sheetCtx).showSnackBar(SnackBar(
-                            content: Text(lang == 'ta' ? 'தவறான PIN' : 'Incorrect PIN. Try again.'),
-                            backgroundColor: const Color(0xFFC62828),
-                          ));
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1B5E20),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        lang == 'ta' ? 'உள்நுழைக' : 'Login as Admin',
-                        style: _getTextStyle(16, FontWeight.bold, Colors.white, lang),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const HomeScreen(),
+        transitionDuration: const Duration(milliseconds: 600),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.05),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+              child: child,
             ),
           );
         },
@@ -187,100 +98,225 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final lang = ref.watch(localeProvider);
-    final localizations = AppLocalizations(lang);
+    final lang = ref.watch(languageProvider);
+    final isTamil = lang == AppLanguage.tamil;
+    final tr = ref.read(translationProvider);
+    String t(String key) => tr[key]?[isTamil ? 'tamil' : 'english'] ?? key;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: const Color(0xFF2E7D32),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Background image ──
+          CachedNetworkImage(
+            imageUrl: _bgImage,
+            fit: BoxFit.cover,
+            placeholder: (_, __) => Container(color: const Color(0xFF1B5E20)),
+            errorWidget: (_, __, ___) => Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF1B5E20), Color(0xFF0D1B0F)],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Gradient overlay ──
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.15),
+                  Colors.black.withValues(alpha: 0.3),
+                  Colors.black.withValues(alpha: 0.7),
+                  Colors.black.withValues(alpha: 0.85),
+                ],
+                stops: const [0.0, 0.3, 0.6, 1.0],
+              ),
+            ),
+          ),
+
+          // ── Content ──
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Spacer(flex: 1),
+
+                  // Language toggle
+                  FadeTransition(
+                    opacity: _fadeAnim,
+                    child: Row(
+                      children: [
+                        _langPill('EN', !isTamil, () {
+                          ref.read(languageProvider.notifier).state = AppLanguage.english;
+                        }),
+                        const SizedBox(width: 8),
+                        _langPill('தமிழ்', isTamil, () {
+                          ref.read(languageProvider.notifier).state = AppLanguage.tamil;
+                        }),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(flex: 4),
+
+                  // ── Main text ──
+                  FadeTransition(
+                    opacity: _fadeAnim,
+                    child: SlideTransition(
+                      position: _slideAnim,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isTamil ? 'உங்கள்\nகால்நடைகளைப்\nபாதுகாக்கவும்' : 'Protect\nYour\nLivestock',
+                            style: GoogleFonts.outfit(
+                              fontSize: 44,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.1,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            t('app_tagline'),
+                            style: GoogleFonts.outfit(
+                              fontSize: 15,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w400,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // ── Stats row ──
+                  FadeTransition(
+                    opacity: _fadeAnim,
+                    child: SlideTransition(
+                      position: _slideAnim,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _statItem(t('plants_count'), t('plants_label')),
+                            Container(width: 1, height: 30, color: Colors.white24),
+                            _statItem(t('ai_label'), t('detection_label')),
+                            Container(width: 1, height: 30, color: Colors.white24),
+                            _statItem(t('live_label'), t('location_label')),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // ── Go button ──
+                  ScaleTransition(
+                    scale: _buttonScale,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 60,
+                      child: ElevatedButton(
+                        onPressed: _enterApp,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E7D32),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          elevation: 8,
+                          shadowColor: const Color(0xFF2E7D32).withValues(alpha: 0.4),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              t('get_started'),
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Icon(Icons.arrow_forward_rounded, size: 22),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(),
+    );
+  }
 
-              // ── Branding ──────────────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F5E9),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.grass_sharp, color: Color(0xFF2E7D32), size: 72),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                localizations.translate('app_title'),
-                textAlign: TextAlign.center,
-                style: _getTextStyle(24, FontWeight.bold, const Color(0xFF1B5E20), lang),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                lang == 'ta'
-                    ? 'கால்நடைகளைப் பாதுகாப்போம், நச்சுத் தாவரங்களைக் கண்டறிவோம்.'
-                    : 'Protect livestock · Identify toxic pastures',
-                textAlign: TextAlign.center,
-                style: _getTextStyle(13, FontWeight.normal, Colors.grey[500]!, lang),
-              ),
-              const Spacer(),
-
-              // ── Login options label ───────────────────────────────────────
-              Text(
-                lang == 'ta' ? 'உள்நுழைவு வகையைத் தேர்வு செய்யவும்' : 'Choose how to sign in',
-                style: _getTextStyle(13, FontWeight.w500, Colors.grey[600]!, lang),
-              ),
-              const SizedBox(height: 16),
-
-              // ── User Login Button ─────────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () => _loginAsUser(context, lang),
-                  icon: const Icon(Icons.person_outline, color: Colors.white, size: 22),
-                  label: Text(
-                    lang == 'ta' ? 'பயனராக உள்நுழையவும்' : 'Continue as User',
-                    style: _getTextStyle(16, FontWeight.bold, Colors.white, lang),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    elevation: 2,
-                    shadowColor: const Color(0x3D2E7D32),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // ── Admin Login Button ────────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: OutlinedButton.icon(
-                  onPressed: () => _showAdminPinSheet(context, lang),
-                  icon: const Icon(Icons.admin_panel_settings_outlined, color: Color(0xFF1B5E20), size: 22),
-                  label: Text(
-                    lang == 'ta' ? 'நிர்வாகியாக உள்நுழையவும்' : 'Admin Login',
-                    style: _getTextStyle(16, FontWeight.bold, const Color(0xFF1B5E20), lang),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    backgroundColor: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 48),
-            ],
+  Widget _langPill(String label, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? Colors.white.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : Colors.white60,
           ),
         ),
       ),
+    );
+  }
+
+  Widget _statItem(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF81C784),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.outfit(fontSize: 11, color: Colors.white60),
+        ),
+      ],
     );
   }
 }
