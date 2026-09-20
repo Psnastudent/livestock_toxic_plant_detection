@@ -49,7 +49,7 @@ dependencies:
   flutter_map_location_marker: ^10.1.0
   shared_preferences: ^2.5.3
   url_launcher: ^6.2.5
-  tflite_flutter: ^0.12.1
+
   image: ^4.8.0
   flutter_tts: ^3.8.5
   camera: ^0.12.1
@@ -85,9 +85,6 @@ flutter:
   assets:
     - assets/data/plants.json
     - assets/data/hospitals.json
-    - assets/model/plant_classifier.tflite
-    - assets/model/labels.txt
-    - assets/model/threshold.json
     - assets/images/plants/
 
   # An image asset can refer to one or more resolution-specific "variants", see

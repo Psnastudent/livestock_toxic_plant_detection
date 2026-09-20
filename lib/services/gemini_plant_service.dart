@@ -6,10 +6,8 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/plant.dart';
 import '../models/classification_result.dart';
 import '../data/mock_plants.dart';
-import 'local_plant_classifier.dart';
 
-/// Service that uses Google Gemini API to identify plants from photos,
-/// with intelligent offline model fallback.
+/// Service that uses Google Gemini API to identify plants from photos.
 class GeminiPlantService {
   static const String _defaultApiKey = String.fromEnvironment(
     'GEMINI_API_KEY',
@@ -26,6 +24,24 @@ class GeminiPlantService {
       generationConfig: GenerationConfig(
         temperature: 0.2,
         maxOutputTokens: 1024,
+        responseMimeType: 'application/json',
+        responseSchema: Schema.object(
+          properties: {
+            'scientific_name': Schema.string(
+              description: 'Exact Scientific Name. If unknown, return "unknown"',
+            ),
+            'english_name': Schema.string(
+              description: 'Common English Name. If unknown, return "Unknown Plant"',
+            ),
+            'confidence': Schema.number(
+              description: 'Confidence score between 0.0 and 1.0',
+            ),
+            'reasoning': Schema.string(
+              description: 'Brief explanation of identifying features or why it could not be identified',
+            ),
+          },
+          requiredProperties: ['scientific_name', 'english_name', 'confidence', 'reasoning'],
+        ),
       ),
     );
   }
@@ -59,11 +75,10 @@ RULES:
 ''';
   }
 
-  /// Identify a plant from an image file using Gemini Vision AI first for highest accuracy,
-  /// with offline local TFLite model fallback.
+  /// Identify a plant from an image file using Gemini Vision AI.
   Future<ClassificationResult> identifyPlant(File imageFile) async {
     try {
-      debugPrint('Attempting Gemini AI Vision identification first for high accuracy...');
+      debugPrint('Attempting Gemini AI Vision identification...');
       final imageBytes = await imageFile.readAsBytes();
       final extension = imageFile.path.split('.').last.toLowerCase();
       final mimeType = switch (extension) {
@@ -87,35 +102,15 @@ RULES:
       debugPrint('Gemini raw response: $responseText');
 
       final result = _parseResponse(responseText);
-      if (result.isSuccess) return result;
-      
-      debugPrint('Gemini API was unsure. Falling back to local offline model...');
-      return await _localFallbackIdentify(imageFile);
+      return result;
 
     } catch (e) {
-      debugPrint('Gemini API error ($e). Activating offline TFLite model fallback...');
-      return await _localFallbackIdentify(imageFile);
-    }
-  }
-
-  /// Local trained model fallback identification based on visual features / plant characteristics
-  Future<ClassificationResult> _localFallbackIdentify(File imageFile) async {
-    final result = await LocalPlantClassifier.classify(imageFile);
-    
-    // If it's a success, we might want to flag it as fallback
-    if (result.isSuccess) {
-      return ClassificationResult.success(
-        plant: result.plant,
-        confidence: result.confidence,
-        source: 'tflite',
-        isFallback: true,
-        topPredictions: result.topPredictions,
-        rawResponse: 'Identified using trained local plant classifier model.',
+      debugPrint('Gemini API error ($e).');
+      return ClassificationResult.error(
+        errorMessage: 'Could not connect to AI service. Please try again.',
+        rawResponse: 'Error: $e',
       );
     }
-    
-    // Otherwise return the unknown/error result as is
-    return result;
   }
 
   /// Parse Gemini's JSON response and match to a Plant in our database.
