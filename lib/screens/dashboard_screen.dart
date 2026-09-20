@@ -167,7 +167,7 @@ class DashboardScreen extends ConsumerWidget {
               height: 52,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  ref.read(authProvider.notifier).state = null;
+                  ref.read(authProvider.notifier).logout();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(

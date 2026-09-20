@@ -1,28 +1,32 @@
-import 'dart:async';
+import 'dart:io';
 import '../widgets/glass_card.dart';
 import '../widgets/themed_background.dart';
-import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../models/plant.dart';
 import '../data/vet_hospitals.dart';
 import '../providers/language_provider.dart';
+import '../providers/location_provider.dart';
 
 class PlantDetailsScreen extends ConsumerStatefulWidget {
   final Plant plant;
   final bool showVetButton;
+  final String? heroTag;
 
   const PlantDetailsScreen({
     super.key,
     required this.plant,
     this.showVetButton = false,
+    this.heroTag,
   });
 
   @override
@@ -30,67 +34,26 @@ class PlantDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
-  Position? _livePosition;
-  StreamSubscription<Position>? _positionStream;
   final MapController _mapController = MapController();
-  VetHospital? _nearestHospital;
-  final FlutterTts flutterTts = FlutterTts();
+  bool _mapMoved = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final FlutterTts _flutterTts = FlutterTts();
   bool isPlaying = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.showVetButton) _startLiveLocation();
-    flutterTts.setCompletionHandler(() {
+    _audioPlayer.onPlayerComplete.listen((event) {
       if (mounted) setState(() => isPlaying = false);
     });
   }
 
   @override
   void dispose() {
-    flutterTts.stop();
-    _positionStream?.cancel();
+    _audioPlayer.stop();
+    _flutterTts.stop();
+    _audioPlayer.dispose();
     super.dispose();
-  }
-
-  VetHospital _findNearest(double lat, double lng) {
-    VetHospital nearest = vetHospitals[0];
-    double minD = double.infinity;
-    for (final h in vetHospitals) {
-      final d = sqrt(pow(h.latitude - lat, 2) + pow(h.longitude - lng, 2));
-      if (d < minD) { minD = d; nearest = h; }
-    }
-    return nearest;
-  }
-
-  Future<void> _startLiveLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied) return;
-    }
-    if (perm == LocationPermission.deniedForever) return;
-
-    final initial = await Geolocator.getCurrentPosition();
-    setState(() {
-      _livePosition = initial;
-      _nearestHospital = _findNearest(initial.latitude, initial.longitude);
-    });
-    _mapController.move(LatLng(initial.latitude, initial.longitude), 14.0);
-
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
-    ).listen((pos) {
-      if (mounted) {
-        setState(() {
-          _livePosition = pos;
-          _nearestHospital = _findNearest(pos.latitude, pos.longitude);
-        });
-        _mapController.move(LatLng(pos.latitude, pos.longitude), 14.0);
-      }
-    });
   }
 
   Future<void> _makePhoneCall(String phone) async {
@@ -100,20 +63,80 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
 
   Future<void> _speakTamil(Plant plant) async {
     if (isPlaying) {
-      await flutterTts.stop();
-      setState(() => isPlaying = false);
+      await _audioPlayer.stop();
+      await _flutterTts.stop();
+      if (mounted) setState(() => isPlaying = false);
       return;
     }
-    
-    await flutterTts.setLanguage("ta-IN");
-    await flutterTts.setPitch(1.0);
-    
-    String textToSpeak = plant.isHarmful 
-        ? "எச்சரிக்கை! ${plant.tamilName} மாடுகளுக்கு ஆபத்தானது. அறிகுறிகள்: ${plant.tamilSymptoms} முதல் உதவி: ${plant.tamilFirstAid} தயவுசெய்து உடனடியாக அருகில் உள்ள கால்நடை மருத்துவமனைக்கு செல்லவும்."
-        : "${plant.tamilName} ஒரு பாதுகாப்பான தாவரம். இது மாடுகளுக்கு நல்ல தீவனம்.";
-        
-    setState(() => isPlaying = true);
-    await flutterTts.speak(textToSpeak);
+
+    if (mounted) setState(() => isPlaying = true);
+
+    final isTamil = ref.read(languageProvider) == AppLanguage.tamil;
+
+    String textToSpeak = isTamil
+      ? (plant.isHarmful 
+          ? "எச்சரிக்கை! ${plant.tamilName} மாடுகளுக்கு ஆபத்தானது. அறிகுறிகள்: ${plant.tamilSymptoms} முதல் உதவி: ${plant.tamilFirstAid} தயவுசெய்து உடனடியாக அருகில் உள்ள கால்நடை மருத்துவமனைக்கு செல்லவும்."
+          : "${plant.tamilName} ஒரு பாதுகாப்பான தாவரம். இது மாடுகளுக்கு நல்ல தீவனம்.")
+      : (plant.isHarmful
+          ? "Warning! ${plant.englishName} is toxic to livestock. Symptoms include: ${plant.symptoms}. First aid: ${plant.firstAid}. Please rush to the nearest veterinary hospital."
+          : "${plant.englishName} is a safe plant. It is good fodder for livestock.");
+
+    final String apiKey = "6ee6552afd399b1c4d8785cb726113681965aaf60f51f669f4d1ca7226db81bf";
+    final String voiceId = "pNInz6obpgDQGcFmaJcg"; // Adam - male voice
+    final String url = "https://api.elevenlabs.io/v1/text-to-speech/$voiceId";
+
+    bool playedWithElevenLabs = false;
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'audio/mpeg',
+        },
+        body: json.encode({
+          "text": textToSpeak,
+          "model_id": "eleven_multilingual_v2",
+          "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75
+          }
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        final tempDir = Directory.systemTemp;
+        final tempFile = File('${tempDir.path}/elevenlabs_tts.mp3');
+        await tempFile.writeAsBytes(response.bodyBytes);
+
+        await _audioPlayer.stop();
+        await _audioPlayer.play(DeviceFileSource(tempFile.path));
+        playedWithElevenLabs = true;
+      } else {
+        debugPrint("ElevenLabs API non-200: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("ElevenLabs TTS exception: $e");
+    }
+
+    if (!playedWithElevenLabs) {
+      try {
+        await _flutterTts.setLanguage(isTamil ? "ta-IN" : "en-US");
+        await _flutterTts.setPitch(1.0);
+        await _flutterTts.setSpeechRate(0.45);
+        _flutterTts.setCompletionHandler(() {
+          if (mounted) setState(() => isPlaying = false);
+        });
+        _flutterTts.setErrorHandler((msg) {
+          if (mounted) setState(() => isPlaying = false);
+        });
+        await _flutterTts.speak(textToSpeak);
+      } catch (e) {
+        debugPrint("FlutterTts fallback error: $e");
+        if (mounted) setState(() => isPlaying = false);
+      }
+    }
   }
 
   @override
@@ -124,6 +147,26 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
     final isTamil = lang == AppLanguage.tamil;
     final tr = ref.read(translationProvider);
     String t(String key) => tr[key]?[isTamil ? 'tamil' : 'english'] ?? key;
+
+    // Read centralized location state
+    final locState = ref.watch(locationProvider);
+    final livePosition = locState.position;
+    final isLocationEnabled = locState.isLocationEnabled;
+    final nearestHospital = locState.nearestHospital;
+    final nearbyHospitals = locState.nearbyHospitals;
+
+    // Move map to user's position once when it becomes available
+    if (widget.showVetButton && livePosition != null && !_mapMoved) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _mapController.move(
+            LatLng(livePosition.latitude, livePosition.longitude),
+            14.0,
+          );
+          _mapMoved = true;
+        }
+      });
+    }
 
     return ThemedBackground(
       child: Scaffold(
@@ -168,7 +211,7 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                           size: 20,
                         ),
                         const SizedBox(width: 6),
-                        Text('தமிழ்', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+                        Text(isTamil ? 'தமிழ்' : 'EN', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -195,7 +238,7 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                 fit: StackFit.expand,
                 children: [
                   Hero(
-                    tag: 'plant_image_${plant.plantId}',
+                    tag: widget.heroTag ?? 'plant_image_${plant.plantId}',
                     child: Image.asset(
                       plant.imageUrl,
                       fit: BoxFit.cover,
@@ -449,11 +492,22 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
 
                   // Vet section
                   if (widget.showVetButton) ...[
-                    Text('🏥  ${t('nearest_vet')}',
-                        style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700,
-                            color: Theme.of(context).textTheme.bodyLarge?.color)),
+                    Row(
+                      children: [
+                        const Icon(Icons.local_hospital_rounded, color: Color(0xFF2E7D32), size: 22),
+                        const SizedBox(width: 8),
+                        Text(
+                          t('nearest_vet'),
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
-                    _buildVetSection(context, isTamil, t),
+                    _buildVetSection(context, isTamil, t, locState: locState),
                     const SizedBox(height: 28),
                   ],
                 ],
@@ -487,12 +541,82 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
     );
   }
 
-  Widget _buildVetSection(BuildContext context, bool isTamil, String Function(String) t) {
-    final center = _livePosition != null
-        ? LatLng(_livePosition!.latitude, _livePosition!.longitude)
-        : const LatLng(11.0168, 76.9558);
-    final hospital = _nearestHospital ?? vetHospitals[2];
-    final vetLoc = LatLng(hospital.latitude, hospital.longitude);
+  Widget _buildVetSection(BuildContext context, bool isTamil, String Function(String) t, {required LocationState locState}) {
+    final livePosition = locState.position;
+    final isLocationEnabled = locState.isLocationEnabled;
+    final nearestHospital = locState.nearestHospital;
+    final nearbyHospitals = locState.nearbyHospitals;
+
+    if (!isLocationEnabled) {
+      return GlassCard(
+        borderRadius: 20,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.location_off_rounded, color: Colors.amber, size: 32),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              isTamil ? 'இருப்பிடம் (Location) ஆஃப் செய்யப்பட்டுள்ளது' : 'Turn On Phone Location',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isTamil
+                  ? 'அருகிலுள்ள நிஜ கால்நடை மருத்துவமனையைக் காண உங்கள் போனில் Location-ஐ ஆன் செய்யவும்.'
+                  : 'Turn on location on your phone to view real nearby veterinary hospitals.',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await Geolocator.openLocationSettings();
+                ref.read(locationProvider.notifier).refreshLocation();
+              },
+              icon: const Icon(Icons.location_on_rounded, size: 18),
+              label: Text(
+                isTamil ? 'இருப்பிடத்தை ஆன் செய்க (Turn On)' : 'Turn On Location',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D32),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (livePosition == null) {
+      return GlassCard(
+        borderRadius: 20,
+        padding: const EdgeInsets.all(32),
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+        ),
+      );
+    }
+
+    final center = LatLng(livePosition.latitude, livePosition.longitude);
+    final hospital = nearestHospital ?? vetHospitals[0];
 
     return GlassCard(
       borderRadius: 20,
@@ -543,12 +667,11 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                       ),
                       const SizedBox(height: 6),
                       Row(children: [
-                        Icon(Icons.circle, size: 8,
-                            color: _livePosition != null ? Colors.green : Colors.amber),
+                        const Icon(Icons.circle, size: 8, color: Colors.green),
                         const SizedBox(width: 6),
-                        Text(_livePosition != null ? t('live_location') : t('acquiring_location'),
+                        Text(t('live_location'),
                             style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600,
-                                color: _livePosition != null ? Colors.green : Colors.amber)),
+                                color: Colors.green)),
                       ]),
                     ],
                   ),
@@ -584,25 +707,43 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                     userAgentPackageName: 'com.example.livestock_toxic_plant_detection',
                   ),
                   MarkerLayer(markers: [
-                    if (_livePosition != null)
-                      Marker(point: center, width: 24, height: 24,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.blue, shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [BoxShadow(color: Colors.blue.withValues(alpha: 0.4),
-                                  blurRadius: 12, spreadRadius: 4)],
-                            ),
-                          )),
-                    Marker(point: vetLoc, width: 40, height: 40,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white, shape: BoxShape.circle,
-                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 6)],
+                    Marker(
+                      point: center,
+                      width: 24,
+                      height: 24,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(color: Colors.blue.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 4)
+                          ],
+                        ),
+                      ),
+                    ),
+                    // All nearby vet hospital markers from central provider
+                    ...nearbyHospitals.map((h) => Marker(
+                      point: LatLng(h.latitude, h.longitude),
+                      width: h == hospital ? 48 : 36,
+                      height: h == hospital ? 48 : 36,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: h == hospital ? Colors.green : Colors.transparent,
+                            width: h == hospital ? 2 : 0,
                           ),
-                          child: const Icon(Icons.local_hospital_rounded,
-                              color: Color(0xFFD32F2F), size: 24),
-                        )),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 6)],
+                        ),
+                        child: Icon(
+                          Icons.local_hospital_rounded,
+                          color: const Color(0xFFD32F2F),
+                          size: h == hospital ? 28 : 20,
+                        ),
+                      ),
+                    )),
                   ]),
                 ],
               ),
@@ -613,3 +754,4 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
     );
   }
 }
+

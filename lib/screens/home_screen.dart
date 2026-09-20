@@ -1,10 +1,11 @@
+import 'dart:io';
 import 'dart:math';
-import 'dart:ui' as dart_ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:ui';
 import '../widgets/themed_background.dart';
-
 
 import '../models/plant.dart';
 import '../data/mock_plants.dart';
@@ -44,11 +45,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final screens = [
-      _HomeContent(staggerController: _staggerController),
+      _HomeContent(
+        staggerController: _staggerController,
+        onScanTap: _showCameraOptionsSheet,
+        onProfileTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const profile.ProfileScreen())),
+        onSearchTap: () => setState(() => _currentNavIndex = 1),
+      ),
       const SearchScreen(),
-      const ScanScreen(),
-      const SearchScreen(),
-      const profile.ProfileScreen(),
     ];
 
     final lang = ref.watch(languageProvider);
@@ -66,43 +69,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           children: screens,
         ),
         extendBody: true,
-        bottomNavigationBar: Container(
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: isDark 
-                ? dart_ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20)
-                : dart_ui.ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-              child: Container(
-                decoration: BoxDecoration(
+        bottomNavigationBar: RepaintBoundary(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark 
+                  ? const Color(0xFF162319).withValues(alpha: 0.95) 
+                  : Colors.white.withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
                   color: isDark 
-                    ? Colors.white.withValues(alpha: 0.08) 
-                    : Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  border: isDark 
-                    ? Border.all(color: Colors.white.withValues(alpha: 0.15))
-                    : null,
-                  boxShadow: isDark ? [] : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.05),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _navItem(Icons.home_rounded, t('home'), 0),
-                      _navItem(Icons.search_rounded, t('search'), 1),
-                      _scanButton(),
-                      _navItem(Icons.menu_book_rounded, t('dictionary'), 3),
-                      _navItem(Icons.person_rounded, t('profile'), 4),
-                    ],
+                boxShadow: isDark ? [] : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
                   ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _navItem(Icons.home_rounded, t('home'), 0),
+                    _scanButton(),
+                    _navItem(Icons.menu_book_rounded, t('dictionary'), 1),
+                  ],
                 ),
               ),
             ),
@@ -114,10 +111,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _navItem(IconData icon, String label, int index) {
     final isActive = _currentNavIndex == index;
-    final activeColor = const Color(0xFF2E7D32);
-    final inactiveColor =
-        Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.4) ??
-            Colors.grey;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Increased contrast for visibility on watery background
+    final activeColor = isDark ? Colors.white : const Color(0xFF1B5E20); 
+    final inactiveColor = isDark 
+        ? Colors.white.withValues(alpha: 0.5) 
+        : Colors.black.withValues(alpha: 0.5);
 
     return Expanded(
       child: GestureDetector(
@@ -127,13 +127,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
-            color: isActive ? activeColor.withValues(alpha: 0.1) : Colors.transparent,
+            color: isActive ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: isActive ? activeColor : inactiveColor, size: 22),
+              Icon(icon, color: isActive ? activeColor : inactiveColor, size: 24),
               const SizedBox(height: 2),
               Text(
                 label,
@@ -141,8 +141,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.outfit(
-                  fontSize: 10,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
                   color: isActive ? activeColor : inactiveColor,
                 ),
               ),
@@ -155,7 +155,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _scanButton() {
     return GestureDetector(
-      onTap: () => setState(() => _currentNavIndex = 2),
+      onTap: _showCameraOptionsSheet,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -174,15 +174,185 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
     );
   }
+
+  void _showCameraOptionsSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1B2A1E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Identify Plant',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF1B5E20),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Select an option to scan and identify plant toxicity',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                color: isDark ? Colors.white60 : Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 20),
+            _sheetOptionTile(
+              icon: Icons.camera_alt_rounded,
+              title: 'Camera',
+              subtitle: 'Open camera to snap a photo',
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndScan(ImageSource.camera);
+              },
+            ),
+            const SizedBox(height: 12),
+            _sheetOptionTile(
+              icon: Icons.photo_library_rounded,
+              title: 'Photos / Gallery',
+              subtitle: 'Choose photo from gallery',
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndScan(ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetOptionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E7D32),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: isDark ? Colors.white60 : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: isDark ? Colors.white38 : Colors.black38,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndScan(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        final imageFile = File(pickedFile.path);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScanScreen(initialImageFile: imageFile),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
 }
 
 // ── Home Content ──────────────────────────────────────────────────────────
-class _HomeContent extends ConsumerWidget {
+class _HomeContent extends ConsumerStatefulWidget {
   final AnimationController staggerController;
-  const _HomeContent({required this.staggerController});
+  final VoidCallback onScanTap;
+  final VoidCallback onProfileTap;
+  final VoidCallback onSearchTap;
+
+  const _HomeContent({
+    required this.staggerController,
+    required this.onScanTap,
+    required this.onProfileTap,
+    required this.onSearchTap,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends ConsumerState<_HomeContent> {
+  String _selectedFilter = 'all';
+
+  @override
+  Widget build(BuildContext context) {
     final lang = ref.watch(languageProvider);
     final isTamil = lang == AppLanguage.tamil;
     final tr = ref.read(translationProvider);
@@ -199,7 +369,7 @@ class _HomeContent extends ConsumerWidget {
           // ── Header ──
           SliverToBoxAdapter(
             child: _Animated(
-              controller: staggerController,
+              controller: widget.staggerController,
               delay: 0.0,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
@@ -228,7 +398,7 @@ class _HomeContent extends ConsumerWidget {
                             style: GoogleFonts.outfit(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF2E7D32),
+                              color: const Color(0xFF264633),
                               letterSpacing: 2,
                             ),
                           ),
@@ -240,19 +410,16 @@ class _HomeContent extends ConsumerWidget {
                         _LangToggle(ref: ref, isTamil: isTamil),
                         const SizedBox(width: 12),
                         GestureDetector(
-                          onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const profile.ProfileScreen())),
+                          onTap: widget.onProfileTap,
                           child: Container(
                             width: 42,
                             height: 42,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
+                              color: const Color(0xFFEAEFE8),
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: const Icon(Icons.person_rounded,
-                                color: Color(0xFF2E7D32), size: 22),
+                                color: Color(0xFF264633), size: 22),
                           ),
                         ),
                       ],
@@ -266,7 +433,7 @@ class _HomeContent extends ConsumerWidget {
           // ── Title ──
           SliverToBoxAdapter(
             child: _Animated(
-              controller: staggerController,
+              controller: widget.staggerController,
               delay: 0.1,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
@@ -288,16 +455,15 @@ class _HomeContent extends ConsumerWidget {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const SearchScreen())),
+                      onTap: widget.onSearchTap,
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
+                          color: const Color(0xFFEAEFE8),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Icon(Icons.search_rounded,
-                            color: const Color(0xFF2E7D32), size: 20),
+                        child: const Icon(Icons.search_rounded,
+                            color: Color(0xFF264633), size: 20),
                       ),
                     ),
                   ],
@@ -306,10 +472,10 @@ class _HomeContent extends ConsumerWidget {
             ),
           ),
 
-          // ── Category chips ──
+          // ── Category chips with smooth in-place selection animation ──
           SliverToBoxAdapter(
             child: _Animated(
-              controller: staggerController,
+              controller: widget.staggerController,
               delay: 0.2,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 20, 0, 0),
@@ -318,14 +484,30 @@ class _HomeContent extends ConsumerWidget {
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
-                      _Chip(icon: Icons.eco_rounded, label: t('all'), active: true,
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen()))),
-                      _Chip(icon: Icons.warning_amber_rounded, label: t('toxic'), active: false,
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen()))),
-                      _Chip(icon: Icons.check_circle_outline, label: t('safe'), active: false,
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen()))),
-                      _Chip(icon: Icons.document_scanner_rounded, label: t('scan_plant'), active: false,
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScanScreen()))),
+                      _Chip(
+                        icon: Icons.eco_rounded,
+                        label: t('all'),
+                        active: _selectedFilter == 'all',
+                        onTap: () => setState(() => _selectedFilter = 'all'),
+                      ),
+                      _Chip(
+                        icon: Icons.warning_amber_rounded,
+                        label: t('toxic'),
+                        active: _selectedFilter == 'harmful',
+                        onTap: () => setState(() => _selectedFilter = 'harmful'),
+                      ),
+                      _Chip(
+                        icon: Icons.check_circle_outline,
+                        label: t('safe'),
+                        active: _selectedFilter == 'harmless',
+                        onTap: () => setState(() => _selectedFilter = 'harmless'),
+                      ),
+                      _Chip(
+                        icon: Icons.document_scanner_rounded,
+                        label: t('scan_plant'),
+                        active: false,
+                        onTap: widget.onScanTap,
+                      ),
                       const SizedBox(width: 24),
                     ],
                   ),
@@ -334,137 +516,96 @@ class _HomeContent extends ConsumerWidget {
             ),
           ),
 
-          // ── Toxic section ──
+          // ── Animated Content Sections depending on filter ──
           SliverToBoxAdapter(
-            child: _Animated(
-              controller: staggerController,
-              delay: 0.3,
-              child: _SectionHeader(
-                title: '⚠️  ${t('common_toxic_plants')}',
-                actionLabel: t('view_all'),
-                onTap: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const SearchScreen())),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _Animated(
-              controller: staggerController,
-              delay: 0.4,
-              child: SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: harmfulPlants.length,
-                  itemBuilder: (_, i) => _PlantCard(
-                    plant: harmfulPlants[i],
-                    isTamil: isTamil,
-                    isHarmful: true,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.05),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
                   ),
-                ),
-              ),
-            ),
-          ),
-
-          // ── Safe section ──
-          SliverToBoxAdapter(
-            child: _Animated(
-              controller: staggerController,
-              delay: 0.5,
-              child: _SectionHeader(
-                title: '🌿  ${t('safe_plants')}',
-                actionLabel: t('view_all'),
-                onTap: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const SearchScreen())),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _Animated(
-              controller: staggerController,
-              delay: 0.6,
-              child: SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: safePlants.length,
-                  itemBuilder: (_, i) => _PlantCard(
-                    plant: safePlants[i],
-                    isTamil: isTamil,
-                    isHarmful: false,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // ── Scan CTA ──
-          SliverToBoxAdapter(
-            child: _Animated(
-              controller: staggerController,
-              delay: 0.7,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                child: GestureDetector(
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const ScanScreen())),
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                );
+              },
+              child: Column(
+                key: ValueKey<String>(_selectedFilter),
+                children: [
+                  // Toxic section (shown if 'all' or 'harmful')
+                  if (_selectedFilter == 'all' || _selectedFilter == 'harmful') ...[
+                    _SectionHeader(
+                      title: t('common_toxic_plants'),
+                      icon: Icons.warning_amber_rounded,
+                      iconColor: Colors.red[700],
+                      actionLabel: t('view_all'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SearchScreen(initialFilter: 'harmful'),
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(22),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(Icons.camera_alt_rounded,
-                              color: Colors.white, size: 26),
+                    SizedBox(
+                      height: 240,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        itemCount: harmfulPlants.length,
+                        addRepaintBoundaries: true,
+                        addAutomaticKeepAlives: true,
+                        itemBuilder: (_, i) => _PlantCard(
+                          plant: harmfulPlants[i],
+                          isTamil: isTamil,
+                          isHarmful: true,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(t('scan_plant'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white)),
-                              const SizedBox(height: 4),
-                              Text(t('scan_subtitle'),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(
-                                      fontSize: 12, color: Colors.white70)),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios_rounded,
-                            color: Colors.white54, size: 16),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  ],
+
+                  // Safe section (shown if 'all' or 'harmless')
+                  if (_selectedFilter == 'all' || _selectedFilter == 'harmless') ...[
+                    _SectionHeader(
+                      title: t('safe_plants'),
+                      icon: Icons.check_circle_outline,
+                      iconColor: const Color(0xFF264633),
+                      actionLabel: t('view_all'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SearchScreen(initialFilter: 'harmless'),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 240,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        itemCount: safePlants.length,
+                        addRepaintBoundaries: true,
+                        addAutomaticKeepAlives: true,
+                        itemBuilder: (_, i) => _PlantCard(
+                          plant: safePlants[i],
+                          isTamil: isTamil,
+                          isHarmful: false,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
@@ -472,24 +613,48 @@ class _HomeContent extends ConsumerWidget {
 }
 
 // ── Animated wrapper ─────────────────────────────────────────────────────
-class _Animated extends StatelessWidget {
+// Performance fix: cache the CurvedAnimation in a StatefulWidget to avoid
+// creating new CurvedAnimation objects on every rebuild, which causes GC
+// pressure and frame drops. Also use RepaintBoundary to isolate repaint regions.
+class _Animated extends StatefulWidget {
   final AnimationController controller;
   final double delay;
   final Widget child;
   const _Animated({required this.controller, required this.delay, required this.child});
 
   @override
-  Widget build(BuildContext context) {
-    final anim = CurvedAnimation(
-      parent: controller,
-      curve: Interval(delay, min(delay + 0.3, 1.0), curve: Curves.easeOutCubic),
+  State<_Animated> createState() => _AnimatedState();
+}
+
+class _AnimatedState extends State<_Animated> {
+  late final CurvedAnimation _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = CurvedAnimation(
+      parent: widget.controller,
+      curve: Interval(widget.delay, min(widget.delay + 0.3, 1.0), curve: Curves.easeOutCubic),
     );
-    return AnimatedBuilder(
-      animation: anim,
-      builder: (_, __) => Opacity(
-        opacity: anim.value,
-        child: Transform.translate(
-            offset: Offset(0, 18 * (1 - anim.value)), child: child),
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (_, child) => Opacity(
+          opacity: _anim.value,
+          child: Transform.translate(
+              offset: Offset(0, 18 * (1 - _anim.value)), child: child),
+        ),
+        child: widget.child,
       ),
     );
   }
@@ -498,8 +663,17 @@ class _Animated extends StatelessWidget {
 // ── Section header ───────────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   final String title, actionLabel;
+  final IconData? icon;
+  final Color? iconColor;
   final VoidCallback onTap;
-  const _SectionHeader({required this.title, required this.actionLabel, required this.onTap});
+
+  const _SectionHeader({
+    required this.title,
+    required this.actionLabel,
+    this.icon,
+    this.iconColor,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -509,22 +683,38 @@ class _SectionHeader extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Text(title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).textTheme.bodyLarge?.color)),
+            child: Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, color: iconColor ?? const Color(0xFF2E7D32), size: 20),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 16),
           GestureDetector(
             onTap: onTap,
-            child: Text(actionLabel,
-                style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF2E7D32))),
+            child: Text(
+              actionLabel,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF2E7D32),
+              ),
+            ),
           ),
         ],
       ),
@@ -614,24 +804,17 @@ class _LangToggle extends StatelessWidget {
 }
 
 // ── Plant card ───────────────────────────────────────────────────────────
-class _PlantCard extends StatefulWidget {
+class _PlantCard extends StatelessWidget {
   final Plant plant;
   final bool isTamil;
   final bool isHarmful;
   const _PlantCard({required this.plant, required this.isTamil, required this.isHarmful});
 
   @override
-  State<_PlantCard> createState() => _PlantCardState();
-}
-
-class _PlantCardState extends State<_PlantCard> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final p = widget.plant;
-    final dangerColor = widget.isHarmful ? Colors.red[700]! : const Color(0xFF2E7D32);
-    final dangerIcon = widget.isHarmful ? Icons.warning_amber_rounded : Icons.check_circle_rounded;
+    final p = plant;
+    final dangerColor = isHarmful ? Colors.red[700]! : const Color(0xFF2E7D32);
+    final dangerIcon = isHarmful ? Icons.warning_amber_rounded : Icons.check_circle_rounded;
     final rating = switch (p.susceptibilityLevel) {
       SusceptibilityLevel.low => '1.0',
       SusceptibilityLevel.medium => '2.5',
@@ -639,17 +822,30 @@ class _PlantCardState extends State<_PlantCard> {
       SusceptibilityLevel.critical => '5.0',
     };
 
+    final heroTag = 'home_plant_${isHarmful ? "harmful" : "safe"}_${p.plantId}';
+
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        Navigator.push(context, MaterialPageRoute(
-            builder: (_) => PlantDetailsScreen(plant: p, showVetButton: widget.isHarmful)));
+      onTap: () {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => PlantDetailsScreen(
+              plant: p,
+              showVetButton: isHarmful,
+              heroTag: heroTag,
+            ),
+            transitionsBuilder: (_, animation, __, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 300),
+            reverseTransitionDuration: const Duration(milliseconds: 250),
+          ),
+        );
       },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.95 : 1.0,
-        duration: const Duration(milliseconds: 150),
+      child: RepaintBoundary(
         child: Container(
           width: 165,
           margin: const EdgeInsets.only(right: 14),
@@ -673,7 +869,7 @@ class _PlantCardState extends State<_PlantCard> {
                   fit: StackFit.expand,
                   children: [
                     Hero(
-                      tag: 'plant_image_${p.plantId}',
+                      tag: heroTag,
                       child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
                         child: Image.asset(
@@ -726,7 +922,7 @@ class _PlantCardState extends State<_PlantCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.isTamil ? p.tamilName : p.englishName,
+                      isTamil ? p.tamilName : p.englishName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(

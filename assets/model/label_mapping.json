@@ -1,0 +1,90 @@
+{
+  "0": {
+    "dir_name": "1. Abrus precatorius \u2014 Rosary Pea",
+    "scientific_name": "Abrus precatorius"
+  },
+  "1": {
+    "dir_name": "10. Immature Sorghum",
+    "scientific_name": "Sorghum bicolor (immature)"
+  },
+  "2": {
+    "dir_name": "11. Ricinus communis \u2014 Castor",
+    "scientific_name": "Ricinus communis"
+  },
+  "3": {
+    "dir_name": "12. Ipomoea",
+    "scientific_name": "Ipomoea"
+  },
+  "4": {
+    "dir_name": "13. Strychnos nux-vomica \u2014 Nux-vomica",
+    "scientific_name": "Strychnos nuxvomica"
+  },
+  "5": {
+    "dir_name": "14. Gloriosa superba \u2014 Flame Lily",
+    "scientific_name": "Gloriosa superba"
+  },
+  "6": {
+    "dir_name": "15. Argemone mexicana \u2014 Mexican Poppy",
+    "scientific_name": "Argemone mexicana"
+  },
+  "7": {
+    "dir_name": "16. Jatropha curcas \u2014 Physic Nut",
+    "scientific_name": "Jatropha curcas"
+  },
+  "8": {
+    "dir_name": "17. Jatropha multifida \u2014 Coral Plant",
+    "scientific_name": "Jatropha multifida"
+  },
+  "9": {
+    "dir_name": "18. Manihot esculenta \u2014Cassava  Tapioca",
+    "scientific_name": "Manihot esculenta"
+  },
+  "10": {
+    "dir_name": "19. Antiaris toxicaria \u2014 Upas Tree",
+    "scientific_name": "Antiaris toxicaria"
+  },
+  "11": {
+    "dir_name": "2. Lantana camara \u2014 Lantana",
+    "scientific_name": "Lantana camara"
+  },
+  "12": {
+    "dir_name": "20. Cerbera odollam \u2014 Suicide Tree",
+    "scientific_name": "Cerbera odollum"
+  },
+  "13": {
+    "dir_name": "21. Citrullus colocynthis \u2014 Bitter Apple",
+    "scientific_name": "Citrullus colocynthis"
+  },
+  "14": {
+    "dir_name": "22. Unknown \u2014 Other Plants",
+    "scientific_name": "Unknown"
+  },
+  "15": {
+    "dir_name": "3. Parthenium hysterophorus \u2014 Congress Grass",
+    "scientific_name": "Parthenium hysterophorus"
+  },
+  "16": {
+    "dir_name": "4. Pteridium aquilinum \u2014 Bracken Fern",
+    "scientific_name": "Pteridium aquilinum"
+  },
+  "17": {
+    "dir_name": "5. Nerium oleander \u2014 Oleander",
+    "scientific_name": "Nerium oleander"
+  },
+  "18": {
+    "dir_name": "6. Thevetia peruviana \u2014 Yellow Oleander",
+    "scientific_name": "Thevetia peruviana"
+  },
+  "19": {
+    "dir_name": "7. Calotropis gigantea \u2014 Giant Milkweed",
+    "scientific_name": "Calotropis gigantea"
+  },
+  "20": {
+    "dir_name": "8. Datura stramonium \u2014 Datura  Jimson Weed",
+    "scientific_name": "Datura stramonium"
+  },
+  "21": {
+    "dir_name": "9. Mimosa pudica \u2014 Touch-Me-Not",
+    "scientific_name": "Mimosa pudica"
+  }
+}

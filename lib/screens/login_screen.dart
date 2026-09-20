@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../models/user_profile.dart';
 import '../providers/auth_provider.dart';
 import '../providers/language_provider.dart';
 import 'home_screen.dart';
+import 'profile_setup_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -65,35 +65,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   void _enterApp() {
-    final mockProfile = UserProfile(
-      uid: 'user_001',
-      name: 'Farmer User',
-      email: 'user@agriguard.app',
-      photoUrl: 'https://picsum.photos/id/433/200/200',
-      loginMethod: 'Mock',
-      role: 'user',
-      createdAt: DateTime.now(),
-    );
-    ref.read(authProvider.notifier).state = mockProfile;
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const HomeScreen(),
-        transitionDuration: const Duration(milliseconds: 600),
-        transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.05),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+    final userProfile = ref.read(authProvider);
+    if (userProfile != null && userProfile.isProfileComplete) {
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const HomeScreen(),
+          transitionDuration: const Duration(milliseconds: 600),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(
+              opacity: animation,
               child: child,
-            ),
-          );
-        },
-      ),
-    );
+            );
+          },
+        ),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const ProfileSetupScreen(isEditing: false),
+          transitionDuration: const Duration(milliseconds: 600),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(
+              opacity: animation,
+              child: child,
+            );
+          },
+        ),
+      );
+    }
   }
 
   @override

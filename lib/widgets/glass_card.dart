@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class GlassCard extends StatelessWidget {
@@ -25,33 +24,23 @@ class GlassCard extends StatelessWidget {
       padding: padding,
       margin: margin,
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white,
+        color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(borderRadius),
         border: isDark
-            ? Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1)
-            : null,
+            ? Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1)
+            : Border.all(color: Colors.black.withValues(alpha: 0.05), width: 1),
         boxShadow: isDark
             ? []
             : [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
                 )
               ],
       ),
       child: child,
     );
-
-    if (isDark) {
-      cardContent = ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: cardContent,
-        ),
-      );
-    }
 
     if (onTap != null) {
       return GestureDetector(

@@ -8,8 +8,11 @@ import '../models/plant.dart';
 import '../providers/language_provider.dart';
 import 'plant_details_screen.dart';
 
+import '../widgets/themed_background.dart';
+
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  final String? initialFilter;
+  const SearchScreen({super.key, this.initialFilter});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -17,7 +20,13 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _searchQuery = '';
-  String _selectedFilter = 'all';
+  late String _selectedFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedFilter = widget.initialFilter ?? 'all';
+  }
 
   List<Plant> get _filteredPlants {
     return mockPlants.where((p) {
@@ -42,6 +51,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final isTamil = lang == AppLanguage.tamil;
     final tr = ref.read(translationProvider);
     String t(String key) => tr[key]?[isTamil ? 'tamil' : 'english'] ?? key;
+    final canPop = Navigator.canPop(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final filters = [
       {'key': 'all', 'label': t('all'), 'icon': Icons.eco_rounded},
@@ -51,92 +62,140 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       {'key': 'not_eatable', 'label': t('not_eatable'), 'icon': Icons.block_rounded},
     ];
 
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-            child: Text(t('plant_dictionary'),
-                style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800,
-                    color: Theme.of(context).textTheme.bodyLarge?.color)),
-          ),
-
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-            child: GlassCard(
-              borderRadius: 18,
-              child: TextField(
-                onChanged: (val) => setState(() => _searchQuery = val),
-                style: GoogleFonts.outfit(color: Theme.of(context).textTheme.bodyLarge?.color),
-                decoration: InputDecoration(
-                  hintText: t('search_by_name'),
-                  hintStyle: GoogleFonts.outfit(color: Theme.of(context).hintColor, fontSize: 14),
-                  prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF2E7D32)),
-                  filled: false,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
-            ),
-          ),
-
-          // Filters
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 0, 4),
-            child: SizedBox(
-              height: 42,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: filters.map((f) {
-                  final selected = _selectedFilter == f['key'];
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedFilter = f['key'] as String),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? const Color(0xFF2E7D32)
-                              : const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(22),
+    return ThemedBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 24, 0),
+                child: Row(
+                  children: [
+                    if (canPop)
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_back_rounded,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
-                        child: Row(
-                          children: [
-                            Icon(f['icon'] as IconData, size: 14,
-                                color: selected ? Colors.white : const Color(0xFF2E7D32)),
-                            const SizedBox(width: 6),
-                            Text(f['label'] as String,
-                                style: GoogleFonts.outfit(
-                                    fontSize: 12,
-                                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                                    color: selected ? Colors.white : const Color(0xFF2E7D32))),
-                          ],
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    Expanded(
+                      child: Text(
+                        t('plant_dictionary'),
+                        style: GoogleFonts.outfit(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF1B5E20),
                         ),
                       ),
                     ),
-                  );
-                }).toList(),
+                  ],
+                ),
               ),
-            ),
-          ),
 
-          // Count
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('${plants.length} ${t('plants_found')}',
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600,
-                      color: Theme.of(context).textTheme.bodyMedium?.color)),
-            ),
-          ),
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                child: GlassCard(
+                  borderRadius: 18,
+                  child: TextField(
+                    onChanged: (val) => setState(() => _searchQuery = val),
+                    style: GoogleFonts.outfit(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: t('search_by_name'),
+                      hintStyle: GoogleFonts.outfit(
+                        color: isDark ? Colors.white54 : Colors.black45,
+                        fontSize: 14,
+                      ),
+                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF2E7D32)),
+                      filled: false,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Filters
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 4, 0, 4),
+                child: SizedBox(
+                  height: 42,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: filters.map((f) {
+                      final selected = _selectedFilter == f['key'];
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedFilter = f['key'] as String),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? const Color(0xFF2E7D32)
+                                  : (isDark ? Colors.white.withValues(alpha: 0.12) : const Color(0xFFE8F5E9)),
+                              borderRadius: BorderRadius.circular(22),
+                              border: selected
+                                  ? null
+                                  : Border.all(
+                                      color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.transparent,
+                                    ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  f['icon'] as IconData,
+                                  size: 14,
+                                  color: selected
+                                      ? Colors.white
+                                      : (isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32)),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  f['label'] as String,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 12,
+                                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                                    color: selected
+                                        ? Colors.white
+                                        : (isDark ? Colors.white70 : const Color(0xFF2E7D32)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+
+              // Count
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${plants.length} ${t('plants_found')}',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32),
+                    ),
+                  ),
+                ),
+              ),
 
           // Grid
           Expanded(
@@ -157,6 +216,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 : GridView.builder(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
                     physics: const BouncingScrollPhysics(),
+                    addRepaintBoundaries: true,
+                    addAutomaticKeepAlives: true,
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 14,
@@ -170,40 +231,48 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
-class _GridCard extends StatefulWidget {
+class _GridCard extends StatelessWidget {
   final Plant plant;
   final bool isTamil;
   final String Function(String) t;
   const _GridCard({required this.plant, required this.isTamil, required this.t});
 
   @override
-  State<_GridCard> createState() => _GridCardState();
-}
-
-class _GridCardState extends State<_GridCard> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final p = widget.plant;
+    final p = plant;
     final dangerColor = p.isHarmful ? Colors.red[700]! : const Color(0xFF2E7D32);
-    final dangerText = p.isHarmful ? widget.t('toxic') : widget.t('safe');
+    final dangerText = p.isHarmful ? t('toxic') : t('safe');
+
+    final heroTag = 'search_grid_plant_${p.plantId}';
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        Navigator.push(context, MaterialPageRoute(
-            builder: (_) => PlantDetailsScreen(plant: p, showVetButton: p.isHarmful)));
+      onTap: () {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => PlantDetailsScreen(
+              plant: p,
+              showVetButton: p.isHarmful,
+              heroTag: heroTag,
+            ),
+            transitionsBuilder: (_, animation, __, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 300),
+            reverseTransitionDuration: const Duration(milliseconds: 250),
+          ),
+        );
       },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.95 : 1.0,
-        duration: const Duration(milliseconds: 150),
+      child: RepaintBoundary(
         child: GlassCard(
           borderRadius: 20,
           child: Column(
@@ -215,7 +284,7 @@ class _GridCardState extends State<_GridCard> {
                   fit: StackFit.expand,
                   children: [
                     Hero(
-                      tag: 'plant_image_${p.plantId}',
+                      tag: heroTag,
                       child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                         child: Image.asset(
@@ -254,7 +323,7 @@ class _GridCardState extends State<_GridCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(widget.isTamil ? p.tamilName : p.englishName,
+                      Text(isTamil ? p.tamilName : p.englishName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.outfit(
@@ -275,7 +344,7 @@ class _GridCardState extends State<_GridCard> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          p.isEatable ? widget.t('edible') : widget.t('not_fodder'),
+                          p.isEatable ? t('edible') : t('not_fodder'),
                           style: GoogleFonts.outfit(
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
